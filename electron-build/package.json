@@ -1,0 +1,14 @@
+{
+  "name": "cdr-studio-desktop",
+  "version": "4.0.0",
+  "description": "CDR Studio - Generador de Totem Pack para Minecraft",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "build": "electron-packager . \"CDR Studio\" --platform=win32 --arch=x64 --out=../dist --overwrite --asar --electron-version=33.4.0 --app-version=4.0.0 --win32metadata.CompanyName=CDRFoundation --win32metadata.FileDescription=CDR-Studio --win32metadata.ProductName=\"CDR Studio\""
+  },
+  "devDependencies": {
+    "electron": "^33.4.0",
+    "electron-packager": "^17.1.2"
+  }
+}

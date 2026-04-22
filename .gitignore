@@ -1,0 +1,38 @@
+# --- ARCHIVOS NECESARIOS PARA LA WEB (NO TOCAR) ---
+# index.html, style.css, app.js, ai-engine.js, gifuct.js, omggif.js
+
+# --- HERRAMIENTAS PRIVADAS (EXCLUIR DE GITHUB) ---
+CDR_KeyGen.py
+CONVERTIR_A_EXE.bat
+CDR.bat
+ENVIAR_A_GITHUB.bat
+CDR_SUBIR_GITHUB.bat
+LIMPIEZA_NUCLEAR_Y_SUBIDA_CDR.bat
+CDR_FOUNDATION_KEYS.json
+.env
+content.txt
+
+# --- CARPETAS PESADAS Y TEMPORALES ---
+build/
+dist/
+*.spec
+__pycache__/
+backup_local/
+python/
+onnx/
+onnx-managed/
+.gradio/
+texture/ 
+node_modules/
+package-lock.json
+
+# --- ELECTRON BUILD (EXCLUIR CARPETA DE COMPILACIÓN) ---
+electron-build/node_modules/
+electron-build/package-lock.json
+electron-build/app-src/
+
+# --- OTROS ---
+*.exe
+*.zip
+*.log
+

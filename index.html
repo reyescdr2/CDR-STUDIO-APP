@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Auto Totem Pack MC</title>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css?v=71">
+    <!-- Google Identity Services SDK -->
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
+    <!-- CryptoJS (Para Seguridad SHA-256) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
+    <!-- CONFIGURACIÓN CDR ELITE (V344: Anti-Cache) -->
+    <script src="registered_keys.js?v=344"></script>
+    <script src="blacklist.js?v=344"></script>
+    <script src="expirations.js?v=344"></script>
+    <script src="config.js?v=344"></script>
+</head>
+<body>
+    <div id="login-gate" class="overlay">
+        <div class="modal-card security-card" style="text-align: center; max-width: 450px;">
+            <div class="cdr-logo-box">
+                <h1 style="color:var(--primary); font-size: 2.5rem; margin-bottom: 0;">CDR</h1>
+                <p style="letter-spacing: 2px; font-weight: 800; font-size: 0.8rem; margin-top: -5px;">FOUNDATION</p>
+            </div>
+            
+            <div id="gate-step-1">
+                <h2 style="margin-top: 20px;">ACCESO RESTRINGIDO</h2>
+                <p style="color: #888; font-size: 0.9rem;">Por favor, vincula tu cuenta de Google para continuar.</p>
+                <!-- Renderizado por HTML (Más compatible) -->
+                <div id="g_id_onload"
+                     data-client_id="812322625140-v3qaulhnn0e89ge05ki5jof0qn8tetmc.apps.googleusercontent.com"
+                     data-context="signin"
+                     data-ux_mode="popup"
+                     data-callback="handleGoogleResponse"
+                     data-auto_prompt="false">
+                </div>
+
+                <div class="g_id_signin"
+                     data-type="standard"
+                     data-shape="rectangular"
+                     data-theme="outline"
+                     data-text="signin_with"
+                     data-size="large"
+                     data-logo_alignment="left"
+                     style="margin: 30px auto; display: flex; justify-content: center;">
+                </div>
+            </div>
+
+            <div id="gate-step-2" class="hidden">
+                <h3 id="user-welcome">BIENVENIDO, USUARIO</h3>
+                <p style="color: #888; font-size: 0.9rem; margin-bottom: 20px;">Configura tu perfil y activa tu llave:</p>
+                
+                <div class="input-group" style="margin-bottom: 15px;">
+                    <label style="font-size: 11px; text-transform: uppercase; color: #666;">Nombre de Usuario (Editable)</label>
+                    <input type="text" id="username-input" placeholder="Escribe tu apodo..." style="text-align: center; font-weight: 800;">
+                </div>
+
+                <div class="input-group">
+                    <label style="font-size: 11px; text-transform: uppercase; color: #666;">Llave de Acceso</label>
+                    <input type="text" id="license-key-input" placeholder="CDR-XXXX-XXXX-XXXX" style="letter-spacing: 2px; text-align: center; font-weight: 800; text-transform: uppercase;">
+                </div>
+
+                <button id="verify-license-btn" class="btn-primary" style="width: 100%; margin-top: 20px;">ACTIVAR GENERADOR</button>
+                
+                <div style="margin-top: 15px;">
+                    <a href="https://discord.gg/FdXkFxbJ" target="_blank" style="color: #555; font-size: 11px; text-decoration: underline; font-weight: 600;">¿Problemas? Soporte en Discord</a>
+                </div>
+
+                <p id="license-error" style="color: #ff0044; font-size: 0.8rem; margin-top: 10px;" class="hidden">LLAVE INVÁLIDA O BLOQUEADA</p>
+            </div>
+        </div>
+    </div>
+
+    <div id="app" class="app-container blur-content">
+        <header class="header">
+            <h1 class="main-title">Generador de <span class="glow">TOTEM</span></h1>
+            <p>CDR Foundation: Versión Web Universal & Autónoma</p>
+        </header>
+
+        <main class="grid-container">
+            <div class="card dropzone" id="visual-dropzone">
+                <div class="help-icon" data-help="Sube un GIF animado o una carpeta de cuadros (PNG/JPG). Ejemplo: Luffy Gear 5, Gato Bailando o tu Logo.">?</div>
+                <div class="icon-container">🕹️</div>
+                <h3>Visual Totem</h3>
+                <p>Imagen o GIF</p>
+                <input type="file" id="visual-input" accept="image/png, image/jpeg, image/gif" hidden>
+                <div class="preview-container" id="visual-preview"></div>
+            </div>
+
+            <div class="card dropzone" id="audio-dropzone">
+                <div class="help-icon" data-help="Sube tu archivo .ogg preparado. USA CONVERTIO.CO SI TIENES UN MP3. Esto garantiza que suene en Minecraft 1.21+.">?</div>
+                <div class="icon-container">🎵</div>
+                <h3>Audio Totem</h3>
+                <p>Archivo .ogg (Obligatorio)</p>
+                <input type="file" id="audio-input" accept=".ogg" hidden>
+                <div class="preview-container" id="audio-preview"></div>
+            </div>
+
+            <div class="card dropzone" id="icon-dropzone">
+                <div class="help-icon" data-help="Imagen cuadrada para el icono del pack (1:1). Ejemplo: 512x512 PNG.">?</div>
+                <div class="icon-container">🖼️</div>
+                <h3>Icono del Pack</h3>
+                <p>PNG/JPG (Imagen Cuadrada)</p>
+                <input type="file" id="icon-input" accept="image/png, image/jpeg" hidden>
+                <div class="preview-container" id="icon-preview"></div>
+            </div>
+            
+            <div class="card controls flex-col">
+                <div class="input-group">
+                    <label>Nombre del Pack</label>
+                    <input type="text" id="pack-name" placeholder="CDR Totem Pack" value="CDR Totem Pack">
+                </div>
+                <div class="input-group">
+                    <label>Descripción del Pack</label>
+                    <textarea id="pack-description" class="premium-textarea" placeholder="CDR Foundation Exclusive - Elite Animation & Audio Framework">CDR Foundation Exclusive - Elite Animation & Audio Framework</textarea>
+                </div>
+                <div class="input-group checkbox-group">
+                    <input type="checkbox" id="remove-bg" checked>
+                    <label for="remove-bg">Remover Fondo</label>
+                    <div style="margin-left: 20px; display: flex; align-items: center; gap: 8px; border-left: 1px solid rgba(255,255,255,0.1); padding-left: 20px;">
+                        <input type="checkbox" id="strict-mode" checked>
+                        <label for="strict-mode" style="color: #ff0000; font-weight: 800; font-size: 11px;">MODO ESTRICTO</label>
+                    </div>
+                </div>
+
+                <!-- Barra de carga para IA Local -->
+                <div id="model-loading-box" class="hidden" style="margin-top:12px; background: rgba(255,255,255,0.05); padding: 10px; border-radius: 8px;">
+                    <div class="flex-row justify-between" style="font-size: 11px; margin-bottom: 8px;">
+                        <span style="color: #ff0000;">Cargando Cerebro Master...</span>
+                        <span id="model-progress-text">0%</span>
+                    </div>
+                    <div class="progress-container" style="height: 6px; background: rgba(0,0,0,0.3);">
+                        <div id="model-progress-bar" class="progress-bar" style="width: 0%; background: linear-gradient(90deg, #ff0000, #990000);"></div>
+                    </div>
+                </div>
+
+                <!-- PANEL DE IA CDR ENHANCED -->
+                <div class="cdr-ai-panel" style="margin-top: 20px;">
+                    <div class="flex-row justify-between" style="gap: 10px; align-items: flex-end;">
+                        <div style="flex: 1;">
+                            <span style="font-size: 11px; color: #ff0000; font-weight: bold; display: block; margin-bottom: 5px;">MOTOR IA ACTIVO:</span>
+                            <select id="ai-engine-mode" class="glass-input ai-select" style="width: 100%; font-size: 10px; padding: 6px 10px; height: 38px;">
+                                <option value="local" selected>🚀 CDR Local Master</option>
+                                <option value="pixian">💎 Pixian.ai (HD Pro)</option>
+                                <option value="photoroom">📸 PhotoRoom</option>
+                                <option value="removebg">✂️ Remove.bg</option>
+                                <option value="hf-cloud">☁️ HF Cloud</option>
+                            </select>
+                        </div>
+                        <div>
+                            <button id="import-keys-btn" class="btn-secondary">📥 Subir Key</button>
+                            <input type="file" id="keys-file-input" accept=".json" hidden>
+                        </div>
+                    </div>
+                    
+                    <!-- CONTENEDOR DE API KEYS CDR -->
+                    <div id="api-keys-container" style="margin-top: 12px; display: flex; flex-direction: column; gap: 8px;">
+                        <div id="photoroom-api-group" class="input-group" style="position: relative;">
+                            <input type="password" id="photoroom-key" placeholder="PhotoRoom API Key" class="glass-input key-input" style="font-size: 10px; padding: 6px; padding-right: 30px; width: 100%;">
+                            <span class="key-toggle" data-target="photoroom-key">👁️</span>
+                        </div>
+                        <div id="removebg-api-group" class="input-group" style="position: relative;">
+                            <input type="password" id="removebg-key" placeholder="Remove.bg API Key" class="glass-input key-input" style="font-size: 10px; padding: 6px; padding-right: 30px; width: 100%;">
+                            <span class="key-toggle" data-target="removebg-key">👁️</span>
+                        </div>
+                        <div id="hf-api-group" class="input-group" style="position: relative;">
+                            <input type="password" id="hf-token" placeholder="HF Token (HuggingFace)" class="glass-input key-input" style="font-size: 10px; padding: 6px; padding-right: 30px; width: 100%;">
+                            <span class="key-toggle" data-target="hf-token">👁️</span>
+                        </div>
+                        <div id="pixian-api-group" class="input-group flex-row" style="gap: 5px;">
+                            <div style="position: relative; flex: 1;">
+                                <input type="password" id="pixian-user" placeholder="Pixian User" class="glass-input key-input" style="font-size: 10px; padding: 6px; padding-right: 30px; width: 100%;">
+                                <span class="key-toggle" data-target="pixian-user">👁️</span>
+                            </div>
+                            <div style="position: relative; flex: 1;">
+                                <input type="password" id="pixian-key" placeholder="Pixian Key" class="glass-input key-input" style="font-size: 10px; padding: 6px; padding-right: 30px; width: 100%;">
+                                <span class="key-toggle" data-target="pixian-key">👁️</span>
+                            </div>
+                    </div>
+                </div>
+
+                <div class="setting-group" style="margin-top: 15px;">
+                    <label style="display:block; margin-bottom: 8px; color: #aaa;">Resolución de Salida:</label>
+                    <div class="resolution-grid" id="res-buttons">
+                        <button class="res-btn" data-res="16">16x</button>
+                        <button class="res-btn" data-res="32">32x</button>
+                        <button class="res-btn" data-res="64">64x</button>
+                        <button class="res-btn" data-res="128">128x</button>
+                        <button class="res-btn active" data-res="orig">ORIG</button>
+                    </div>
+                </div>
+
+                <!-- FPS AUTOMÁTICOS (HIDDEN CDR LOGIC) -->
+                <input type="range" id="animFPS" min="1" max="24" value="10" style="display: none;">
+                <span id="fps-val" style="display: none;">10</span>
+
+                <div id="resolution-info" class="quality-badge hidden" style="display: inline-flex; align-self: center; margin: 10px auto; text-align: center; padding: 4px 12px; font-size: 10px; border-radius: 4px; background: rgba(255,0,0,0.1); border: 1px solid rgba(255,0,0,0.3); width: fit-content; min-width: auto;">
+                    <span id="res-text" style="letter-spacing: 1px; font-weight: bold; color: #ff0000; white-space: nowrap;">CDR FOUNDATION</span>
+                </div>
+
+                <button id="generate-btn" class="btn-primary" disabled style="margin-top: 20px;">Generar .mcpack</button>
+            </div>
+        </main>
+    </div> <!-- CIERRE DE APP-CONTAINER (V335: LIBERACIÓN DE MODALES) -->
+
+    <!-- SECCIÓN DE MODALES GLOBALES (V335 - POSICIÓN FIJA) -->
+    <div id="loading-overlay" class="modal hidden">
+            <div class="spinner"></div>
+            <h2 id="loading-text">Procesando...</h2>
+            <p id="loading-subtext">Esto puede tardar unos segundos</p>
+            <div class="progress-container">
+                <div id="progress-bar" class="progress-bar"></div>
+                <span id="progress-percent" class="loader-percentage">0%</span>
+            </div>
+        </div>
+
+
+
+        <div id="preview-modal" class="modal hidden">
+            <div class="modal-card" style="max-width: 900px; max-height: 90vh; overflow-y: auto;">
+                <div class="modal-header" style="display: flex; justify-content: space-between; align-items: center;">
+                    <h2>Supervisión de Calidad</h2>
+                    <div id="ai-status-indicator" class="status-badge processing">Iniciando Análisis...</div>
+                </div>
+                
+                <!-- GALERÍA DE SUPERVISIÓN (MODO CUAIDROS INDEPENDIENTES) -->
+                <div id="gallery-view">
+                    <p style="text-align:center; color:#aaa; margin-bottom: 20px;">Cada cuadro representa un fotograma. Compara el original con el resultado de la IA.</p>
+                    
+                    <div id="frames-grid-view" class="comparison-grid">
+                        <!-- Aquí se inyectarán las CARDS de cada frame -->
+                    </div>
+                </div>
+
+                <div class="modal-actions" id="gallery-actions" style="margin-top: 20px; display: flex; gap: 10px; justify-content: center; width: 100%; align-items: center; flex-wrap: wrap;">
+                    <div style="position: relative; display: flex; align-items: center; gap: 10px;">
+                        <input type="file" id="sync-frames-input" accept="image/png, image/jpeg" multiple hidden>
+                        <button id="sync-frames-btn" class="btn-secondary" style="background: rgba(255, 0, 0, 0.1); border-color: #ff0000; color: #ff0000; display: none; padding: 12px 20px; height: 48px; font-size: 0.8rem; white-space: nowrap;">🔄 Sincronizar Cuadros</button>
+                        
+                        <button id="export-raw-btn" style="padding: 12px 20px; height: 48px; font-size: 0.8rem; white-space: nowrap;">📥 Originales</button>
+                        <div class="help-icon" style="position: absolute; top: -10px; right: -5px; width: 18px; height: 18px; font-size: 10px;" data-help="¿La IA falló? Descarga los frames y usa estas webs recomendadas:<br><br>1. <a href='https://pixlr.com/remove-background/' target='_blank' style='color:#ff0000; text-decoration:underline;'>Pixlr</a> (¡NUEVO! Multi-imágenes)<br>2. <a href='https://www.iloveimg.com/remove-background' target='_blank' style='color:#ff0000; text-decoration:underline;'>iLoveIMG</a> (Recomendada)<br>3. <a href='https://pixian.ai' target='_blank' style='color:#ff0000; text-decoration:underline;'>Pixian.ai</a><br>4. <a href='https://www.remove.bg' target='_blank' style='color:#ff0000; text-decoration:underline;'>Remove.bg</a><br>5. <a href='https://www.photoroom.com/background-remover' target='_blank' style='color:#ff0000; text-decoration:underline;'>PhotoRoom</a>">?</div>
+                    </div>
+                    
+                    <button id="cancel-btn" class="btn-secondary" style="padding: 12px 20px; height: 48px; font-size: 0.8rem; white-space: nowrap;">Regresar</button>
+                    <button id="confirm-btn" class="btn-primary" disabled style="padding: 12px 20px; height: 48px; font-size: 0.8rem; white-space: nowrap; flex-grow: 1;">ESPERANDO IA...</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- MODAL DE ELECCIÓN VISUAL (V323) -->
+        <div id="choice-modal" class="modal hidden">
+            <div class="modal-card" style="max-width: 400px; text-align: center; border: 2px solid var(--primary); height: auto; min-height: 300px;">
+                <div class="icon-container" style="font-size: 40px; margin-bottom: 15px;">🕹️</div>
+                <h3 style="margin-bottom: 10px;">¿Qué quieres subir?</h3>
+                <p style="color: #aaa; margin-bottom: 25px; font-size: 13px;">Selecciona el origen de tu animación</p>
+                <div class="flex-col" style="gap: 12px; grid-column: auto;">
+                    <button id="choice-gif-btn" class="btn-primary" style="width: 100%; font-size: 1rem;">🔥 Subir un GIF Animado</button>
+                    <!-- BOTÓN MULTI-IMAGEN ELIMINADO PARA MIGRAR A LA SEGUNDA FASE -->
+                    <button id="choice-cancel-btn" class="btn-secondary" style="width: 100%; margin-top: 10px; opacity: 0.6; font-size: 1rem;">Cancelar</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- MODAL DE ELECCIÓN DE AUDIO CDR (V332 - CLON PERICIAL FOTO) -->
+        <div id="audio-choice-modal" class="modal hidden">
+            <div class="modal-content glass-card animate-slide-up" style="max-width: 420px; text-align: center; border: 2px solid #ff0000; background: rgba(15, 15, 15, 0.98); box-shadow: 0 0 30px rgba(255, 0, 0, 0.3); padding: 35px; border-radius: 15px;">
+                <h2 style="color: #ff0000; font-size: 20px; margin-bottom: 20px; font-weight: 800; text-transform: uppercase;">CDR Foundation: Guía</h2>
+                
+                <p style="font-size: 14px; color: #fff; margin-bottom: 25px; line-height: 1.6;">
+                    <strong>Sube tu archivo .ogg preparado.</strong><br>
+                    USA CONVERTIO.CO SI TIENES UN MP3.<br>
+                    <span style="color: #ff0000;">Esto garantiza que suene en Minecraft 1.21+.</span>
+                </p>
+                
+                <div style="text-align: left; margin: 0 auto 30px auto; display: inline-block;">
+                    <ol style="color: #fff; line-height: 2.8; font-size: 15px; font-weight: 500;">
+                        <li><a href="https://convertio.co/mp3-ogg/" target="_blank" style="color: #ff0000; text-decoration: underline; font-weight: 900;">Convertio</a> (Especialista MP3)</li>
+                        <li><a href="https://www.freeconvert.com/mp3-to-ogg" target="_blank" style="color: #ff0000; text-decoration: underline; font-weight: 900;">FreeConvert</a> (Recomendado)</li>
+                    </ol>
+                </div>
+                
+                <div style="margin-top: 10px;">
+                    <button id="audio-choice-ready-btn" class="btn-primary" style="background: #ff0000; color: #fff; border: none; padding: 12px 35px; border-radius: 6px; font-weight: 800; cursor: pointer; text-transform: uppercase; letter-spacing: 1px; box-shadow: 0 4px 15px rgba(255,0,0,0.3);">
+                        Tengo mi .ogg listo
+                    </button>
+                </div>
+
+                <div id="audio-choice-cancel-btn" style="margin-top: 25px; color: #666; font-size: 12px; cursor: pointer; text-decoration: underline;">
+                    Cerrar Guía Técnica
+                </div>
+            </div>
+        </div>
+
+    <input type="file" id="frames-input" accept="image/png, image/jpeg, .zip" multiple hidden>
+
+    <script src="https://cdn.jsdelivr.net/npm/omggif@1.0.10/omggif.js"></script>
+    <script src="https://unpkg.com/@ffmpeg/ffmpeg@0.12.10/dist/umd/ffmpeg.js"></script>
+    <script src="https://unpkg.com/@ffmpeg/util@0.12.1/dist/umd/index.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/selfie_segmentation/selfie_segmentation.js" crossorigin="anonymous"></script>
+    <!-- ARQUITECTURA MODULAR V500 -->
+    <script src="ia-models/engine-mediapipe.js"></script>
+    <script src="ia-models/engine-birefnet.js"></script>
+    <script src="ia-models/engine-hf.js"></script>
+    <script src="ia-models/engine-photoroom.js"></script>
+    <script src="ia-models/engine-removebg.js"></script>
+    <script src="ia-models/engine-pixian.js"></script>
+    <script src="ia-models/engine-clipdrop.js"></script>
+    <script src="ai-engine.js"></script>
+    <script src="app.js"></script>
+    <div class="glow-bg"></div>
+</body>
+</html>
+
