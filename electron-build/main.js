@@ -29,43 +29,35 @@ const IA_MODEL_FILES = [
 const CACHE_DIR    = path.join(os.homedir(), 'AppData', 'Local', 'CDR-Studio', 'app');
 const IA_CACHE_DIR = path.join(CACHE_DIR, 'ia-models');
 
-// ─── NAVEGADOR INTEGRADO CDR (Sin depender de Edge ni ningún otro) ───────────
-// Abre URLs externas en una ventana Electron propia (Chromium embebido)
+// ─── NAVEGADOR INTEGRADO CDR ────────────────────────────────────────────────
+// Abre URLs en una ventana CDR propia con barra de navegación visible.
+// No requiere Edge, Chrome ni ningún navegador externo.
 function openInCDRBrowser(url) {
     const browserWin = new BrowserWindow({
         width: 1150,
-        height: 780,
-        title: `CDR Navigator — ${url}`,
+        height: 800,
+        title: 'CDR Navigator',
         backgroundColor: '#0a0a0a',
         autoHideMenuBar: true,
         webPreferences: {
-            nodeIntegration: false,
-            contextIsolation: true,
+            nodeIntegration: true,   // Necesario para que webview funcione
+            contextIsolation: false, // Necesario para webviewTag
+            webviewTag: true,        // Habilita <webview> en browser.html
             webSecurity: true
         }
     });
 
-    // Barra de navegación mínima
-    Menu.setApplicationMenu(null);
-    browserWin.setMenu(Menu.buildFromTemplate([
-        {
-            label: '🌐 Navegador CDR',
-            submenu: [
-                { label: '← Atrás',    click: () => browserWin.webContents.goBack()    },
-                { label: '→ Adelante', click: () => browserWin.webContents.goForward() },
-                { label: '🔄 Recargar', click: () => browserWin.reload()               },
-                { type: 'separator' },
-                { label: '❌ Cerrar',  click: () => browserWin.close()                 }
-            ]
+    browserWin.setMenu(null); // Sin menú — los botones están en browser.html
+
+    // Cargar browser.html pasando la URL como parámetro
+    const browserHtmlPath = path.join(__dirname, 'browser.html');
+    browserWin.loadFile(browserHtmlPath, { query: { url } });
+
+    // Al cerrar el navegador CDR → volver al foco de CDR Studio
+    browserWin.on('closed', () => {
+        if (mainWindow && !mainWindow.isDestroyed()) {
+            mainWindow.focus();
         }
-    ]));
-
-    browserWin.loadURL(url);
-
-    // Links dentro del navegador CDR también se abren dentro, no en Edge
-    browserWin.webContents.setWindowOpenHandler(({ url: newUrl }) => {
-        openInCDRBrowser(newUrl);
-        return { action: 'deny' };
     });
 }
 

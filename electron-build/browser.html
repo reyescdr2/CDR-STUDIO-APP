@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CDR Navigator</title>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;800&display=swap" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Outfit', sans-serif;
+            background: #0a0a0a;
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        /* ── BARRA DE NAVEGACIÓN CDR ── */
+        .nav-bar {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 14px;
+            background: #111;
+            border-bottom: 2px solid #920000;
+            flex-shrink: 0;
+            user-select: none;
+        }
+
+        .nav-logo {
+            font-size: 12px;
+            font-weight: 800;
+            color: #920000;
+            letter-spacing: 2px;
+            padding-right: 8px;
+            border-right: 1px solid #222;
+        }
+
+        .nav-btn {
+            background: rgba(255,255,255,0.05);
+            border: 1px solid rgba(255,255,255,0.1);
+            color: #ccc;
+            border-radius: 6px;
+            padding: 5px 11px;
+            cursor: pointer;
+            font-size: 14px;
+            font-family: 'Outfit', sans-serif;
+            transition: all 0.15s;
+            white-space: nowrap;
+        }
+        .nav-btn:hover:not(:disabled) {
+            background: rgba(146,0,0,0.3);
+            border-color: #920000;
+            color: #fff;
+        }
+        .nav-btn:disabled {
+            opacity: 0.25;
+            cursor: not-allowed;
+        }
+
+        .url-bar {
+            flex: 1;
+            background: #1a1a1a;
+            border: 1px solid #2a2a2a;
+            border-radius: 8px;
+            padding: 6px 14px;
+            color: #888;
+            font-size: 12px;
+            font-family: 'Outfit', sans-serif;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        .url-bar.loading { color: #920000; }
+
+        .btn-close {
+            background: rgba(146,0,0,0.15);
+            border: 1px solid #920000;
+            color: #ff4444;
+            font-weight: 700;
+            font-size: 13px;
+        }
+        .btn-close:hover {
+            background: #920000 !important;
+            border-color: #ff0000 !important;
+            color: #fff !important;
+        }
+
+        /* ── WEBVIEW ── */
+        webview {
+            flex: 1;
+            width: 100%;
+            border: none;
+            background: #fff;
+        }
+
+        /* ── SPINNER DE CARGA ── */
+        .loading-bar {
+            height: 2px;
+            background: linear-gradient(90deg, #920000, #ff0000, #920000);
+            background-size: 200% 100%;
+            animation: shimmer 1.2s infinite;
+            display: none;
+            flex-shrink: 0;
+        }
+        .loading-bar.active { display: block; }
+        @keyframes shimmer {
+            0%   { background-position: 200% 0; }
+            100% { background-position: -200% 0; }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- BARRA DE NAVEGACIÓN CDR -->
+    <div class="nav-bar">
+        <span class="nav-logo">CDR</span>
+
+        <button class="nav-btn" id="btn-back"    title="Atrás"    disabled>◀</button>
+        <button class="nav-btn" id="btn-fwd"     title="Adelante" disabled>▶</button>
+        <button class="nav-btn" id="btn-reload"  title="Recargar">🔄</button>
+
+        <div class="url-bar" id="url-bar">Cargando...</div>
+
+        <button class="nav-btn btn-close" id="btn-close" title="Cerrar y volver a CDR Studio">✕ Cerrar</button>
+    </div>
+
+    <!-- BARRA DE PROGRESO -->
+    <div class="loading-bar" id="loading-bar"></div>
+
+    <!-- VENTANA DEL SITIO WEB -->
+    <webview
+        id="wv"
+        src="about:blank"
+        allowpopups
+        style="flex:1; width:100%;"
+    ></webview>
+
+    <script>
+        const wv         = document.getElementById('wv');
+        const urlBar     = document.getElementById('url-bar');
+        const btnBack    = document.getElementById('btn-back');
+        const btnFwd     = document.getElementById('btn-fwd');
+        const btnReload  = document.getElementById('btn-reload');
+        const btnClose   = document.getElementById('btn-close');
+        const loadingBar = document.getElementById('loading-bar');
+
+        // Leer URL del query string (pasada desde main.js)
+        const params = new URLSearchParams(window.location.search);
+        const targetUrl = params.get('url') || 'https://github.com/reyescdr2/CDR-STUDIO-APP';
+
+        // Cargar la URL al iniciar
+        wv.src = targetUrl;
+
+        // ── Actualizar estado de botones ──
+        function updateNavState() {
+            btnBack.disabled = !wv.canGoBack();
+            btnFwd.disabled  = !wv.canGoForward();
+        }
+
+        // ── Eventos de navegación ──
+        wv.addEventListener('did-start-loading', () => {
+            loadingBar.classList.add('active');
+            urlBar.classList.add('loading');
+            urlBar.textContent = 'Cargando...';
+        });
+
+        wv.addEventListener('did-stop-loading', () => {
+            loadingBar.classList.remove('active');
+            urlBar.classList.remove('loading');
+            urlBar.textContent = wv.getURL();
+            document.title    = `CDR Navigator — ${wv.getTitle() || wv.getURL()}`;
+            updateNavState();
+        });
+
+        wv.addEventListener('did-navigate', () => {
+            urlBar.textContent = wv.getURL();
+            updateNavState();
+        });
+
+        wv.addEventListener('did-navigate-in-page', () => {
+            urlBar.textContent = wv.getURL();
+            updateNavState();
+        });
+
+        // Links dentro del webview que abran nueva pestaña → cargar en el mismo webview
+        wv.addEventListener('new-window', (e) => {
+            wv.src = e.url;
+        });
+
+        // ── Acciones de botones ──
+        btnBack.addEventListener('click',   () => { if (wv.canGoBack())    wv.goBack();    });
+        btnFwd.addEventListener('click',    () => { if (wv.canGoForward()) wv.goForward(); });
+        btnReload.addEventListener('click', () => wv.reload());
+        btnClose.addEventListener('click',  () => window.close());
+
+        // ── Atajos de teclado ──
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'F5')              wv.reload();
+            if (e.key === 'Escape')          window.close();
+            if (e.altKey && e.key === 'ArrowLeft')  { if (wv.canGoBack())    wv.goBack();    }
+            if (e.altKey && e.key === 'ArrowRight') { if (wv.canGoForward()) wv.goForward(); }
+        });
+    </script>
+</body>
+</html>
