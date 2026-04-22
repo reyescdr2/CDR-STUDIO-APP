@@ -50,11 +50,18 @@
             <div id="gate-step-2" class="hidden">
                 <h3 id="user-welcome">BIENVENIDO, USUARIO</h3>
                 <p style="color: #888; font-size: 0.9rem; margin-bottom: 20px;">Configura tu perfil y activa tu llave:</p>
+
+                <!-- CAMPO DE EMAIL PARA MODO DESKTOP (ELECTRON) -->
+                <div id="desktop-email-group" class="input-group hidden" style="margin-bottom: 15px;">
+                    <label style="font-size: 11px; text-transform: uppercase; color: #ff0000; font-weight: 800;">📧 Tu Correo (Vinculado a la Llave)</label>
+                    <input type="email" id="desktop-email-input" placeholder="tucorreo@gmail.com" style="text-align: center; font-weight: 600;">
+                </div>
                 
                 <div class="input-group" style="margin-bottom: 15px;">
                     <label style="font-size: 11px; text-transform: uppercase; color: #666;">Nombre de Usuario (Editable)</label>
                     <input type="text" id="username-input" placeholder="Escribe tu apodo..." style="text-align: center; font-weight: 800;">
                 </div>
+
 
                 <div class="input-group">
                     <label style="font-size: 11px; text-transform: uppercase; color: #666;">Llave de Acceso</label>

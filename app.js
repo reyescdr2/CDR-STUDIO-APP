@@ -320,7 +320,23 @@ function checkAuth() {
 function showLoginGate() {
     ui.loginGate.classList.remove('hidden');
     ui.appContainer.classList.add('blur-content');
-    initGoogleLogin();
+
+    // --- MODO DESKTOP (ELECTRON): Saltar Google Sign-In ---
+    // Google OAuth no funciona en file:// — usamos email directo
+    if (window.CDR_DESKTOP && window.CDR_DESKTOP.isElectron) {
+        ui.gateStep1.classList.add('hidden');
+        ui.gateStep2.classList.remove('hidden');
+        ui.userWelcome.innerText = 'CDR STUDIO — DESKTOP V4.0';
+        currentUser = { email: '', name: 'USUARIO CDR' };
+
+        // Mostrar campo de email para modo desktop
+        const desktopEmailGroup = document.getElementById('desktop-email-group');
+        if (desktopEmailGroup) desktopEmailGroup.classList.remove('hidden');
+
+        console.log('[CDR Desktop] Modo Exe detectado. Google Sign-In omitido.');
+    } else {
+        initGoogleLogin();
+    }
 }
 
 function unlockApp() {
@@ -420,7 +436,19 @@ async function sendToDiscord(username, email, key, status = "REGISTRO") {
 ui.verifyLicenseBtn.onclick = () => {
     const key = ui.licenseInput.value.trim().toUpperCase();
     const username = ui.usernameInput ? ui.usernameInput.value.trim() : "Usuario Desconocido";
-    
+
+    // --- MODO DESKTOP: leer email del campo propio ---
+    if (window.CDR_DESKTOP && window.CDR_DESKTOP.isElectron) {
+        const desktopEmailInput = document.getElementById('desktop-email-input');
+        const desktopEmail = desktopEmailInput ? desktopEmailInput.value.trim().toLowerCase() : '';
+        if (!desktopEmail) {
+            ui.licenseError.innerText = 'INGRESA TU CORREO PARA VALIDAR LA LLAVE';
+            ui.licenseError.classList.remove('hidden');
+            return;
+        }
+        currentUser = { email: desktopEmail, name: username || 'USUARIO CDR' };
+    }
+
     // Feedback visual de procesamiento
     ui.verifyLicenseBtn.innerText = "VALIDANDO LLAVE...";
     ui.verifyLicenseBtn.disabled = true;
