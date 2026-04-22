@@ -11,41 +11,63 @@ const GITHUB_RAW = 'https://raw.githubusercontent.com/reyescdr2/CDR-STUDIO-APP/m
 
 // ─── ARCHIVOS QUE SE DESCARGAN LOCALMENTE (app completa) ────────────────────
 const APP_FILES = [
-    'index.html',
-    'app.js',
-    'ai-engine.js',
-    'style.css',
-    'config.js',
-    'gifuct.js',
-    'omggif.js',
-    'metadata.js',
-    'blacklist.js',
-    'expirations.js',
-    'registered_keys.js'
+    'index.html', 'app.js', 'ai-engine.js', 'style.css',
+    'config.js', 'gifuct.js', 'omggif.js', 'metadata.js',
+    'blacklist.js', 'expirations.js', 'registered_keys.js'
 ];
 
 // ─── ARCHIVOS DE SEGURIDAD: SIEMPRE DESDE GITHUB, NUNCA LOCAL ────────────────
-// Estos se inyectan ENCIMA de los archivos locales después de que la app carga
-const SECURE_KEY_FILES = [
-    'registered_keys.js',
-    'blacklist.js',
-    'expirations.js'
-];
+const SECURE_KEY_FILES = ['registered_keys.js', 'blacklist.js', 'expirations.js'];
 
 // ─── IA MODELS ───────────────────────────────────────────────────────────────
 const IA_MODEL_FILES = [
-    'engine-birefnet.js',
-    'engine-mediapipe.js',
-    'engine-hf.js',
-    'engine-photoroom.js',
-    'engine-removebg.js',
-    'engine-pixian.js',
-    'engine-clipdrop.js'
+    'engine-birefnet.js', 'engine-mediapipe.js', 'engine-hf.js',
+    'engine-photoroom.js', 'engine-removebg.js', 'engine-pixian.js', 'engine-clipdrop.js'
 ];
 
 // ─── DIRECTORIO DE CACHÉ LOCAL ───────────────────────────────────────────────
-const CACHE_DIR     = path.join(os.homedir(), 'AppData', 'Local', 'CDR-Studio', 'app');
-const IA_CACHE_DIR  = path.join(CACHE_DIR, 'ia-models');
+const CACHE_DIR    = path.join(os.homedir(), 'AppData', 'Local', 'CDR-Studio', 'app');
+const IA_CACHE_DIR = path.join(CACHE_DIR, 'ia-models');
+
+// ─── NAVEGADOR INTEGRADO CDR (Sin depender de Edge ni ningún otro) ───────────
+// Abre URLs externas en una ventana Electron propia (Chromium embebido)
+function openInCDRBrowser(url) {
+    const browserWin = new BrowserWindow({
+        width: 1150,
+        height: 780,
+        title: `CDR Navigator — ${url}`,
+        backgroundColor: '#0a0a0a',
+        autoHideMenuBar: true,
+        webPreferences: {
+            nodeIntegration: false,
+            contextIsolation: true,
+            webSecurity: true
+        }
+    });
+
+    // Barra de navegación mínima
+    Menu.setApplicationMenu(null);
+    browserWin.setMenu(Menu.buildFromTemplate([
+        {
+            label: '🌐 Navegador CDR',
+            submenu: [
+                { label: '← Atrás',    click: () => browserWin.webContents.goBack()    },
+                { label: '→ Adelante', click: () => browserWin.webContents.goForward() },
+                { label: '🔄 Recargar', click: () => browserWin.reload()               },
+                { type: 'separator' },
+                { label: '❌ Cerrar',  click: () => browserWin.close()                 }
+            ]
+        }
+    ]));
+
+    browserWin.loadURL(url);
+
+    // Links dentro del navegador CDR también se abren dentro, no en Edge
+    browserWin.webContents.setWindowOpenHandler(({ url: newUrl }) => {
+        openInCDRBrowser(newUrl);
+        return { action: 'deny' };
+    });
+}
 
 // ─── HELPERS DE RED ───────────────────────────────────────────────────────────
 function fetchText(url) {
@@ -65,40 +87,26 @@ async function downloadFile(url, dest) {
 }
 
 // ─── SINCRONIZACIÓN INICIAL (APP FILES) ──────────────────────────────────────
-async function syncAppFiles(win) {
-    console.log('[CDR Desktop] Sincronizando archivos de la app desde GitHub...');
-
-    const tasks = APP_FILES.map(async file => {
-        const dest = path.join(CACHE_DIR, file);
+async function syncAppFiles() {
+    console.log('[CDR Desktop] Sincronizando archivos desde GitHub...');
+    const all = [
+        ...APP_FILES.map(f => ({ url: `${GITHUB_RAW}/${f}`, dest: path.join(CACHE_DIR, f) })),
+        ...IA_MODEL_FILES.map(f => ({ url: `${GITHUB_RAW}/ia-models/${f}`, dest: path.join(IA_CACHE_DIR, f) }))
+    ];
+    await Promise.allSettled(all.map(async ({ url, dest }) => {
         try {
-            await downloadFile(`${GITHUB_RAW}/${file}`, dest);
-            console.log(`  [✓] ${file}`);
+            await downloadFile(url, dest);
+            console.log(`  [✓] ${path.basename(dest)}`);
         } catch (e) {
-            console.warn(`  [!] ${file} — sin conexión, usando caché`);
+            console.warn(`  [!] ${path.basename(dest)} — sin conexión, usando caché`);
         }
-    });
-
-    const iaTasks = IA_MODEL_FILES.map(async file => {
-        const dest = path.join(IA_CACHE_DIR, file);
-        try {
-            await downloadFile(`${GITHUB_RAW}/ia-models/${file}`, dest);
-            console.log(`  [✓] ia-models/${file}`);
-        } catch (e) {
-            console.warn(`  [!] ia-models/${file} — sin conexión, usando caché`);
-        }
-    });
-
-    await Promise.allSettled([...tasks, ...iaTasks]);
+    }));
     console.log('[CDR Desktop] Sincronización completada.');
 }
 
 // ─── INYECCIÓN DE KEYS SEGURAS DESDE GITHUB ──────────────────────────────────
-// Después de que la app carga, sobreescribimos las variables de keys
-// con los valores FRESCOS de GitHub. Así nadie puede manipular los archivos locales.
 async function injectFreshKeys(webContents) {
-    console.log('[CDR Security] Obteniendo keys de seguridad desde GitHub...');
-    let allOk = true;
-
+    console.log('[CDR Security] Obteniendo keys desde GitHub...');
     for (const file of SECURE_KEY_FILES) {
         try {
             const script = await fetchText(`${GITHUB_RAW}/${file}`);
@@ -106,15 +114,7 @@ async function injectFreshKeys(webContents) {
             console.log(`  [✓] ${file} inyectado desde GitHub`);
         } catch (e) {
             console.warn(`  [!] ${file} — fallo de red, usando caché local`);
-            allOk = false;
         }
-    }
-
-    // Notificar al usuario si hay problemas de conexión con las keys
-    if (!allOk) {
-        await webContents.executeJavaScript(`
-            console.warn("[CDR Security] Algunas keys se cargaron desde caché local (sin conexión). Las keys de GitHub tienen prioridad al reconectar.");
-        `);
     }
 }
 
@@ -122,7 +122,6 @@ async function injectFreshKeys(webContents) {
 let mainWindow;
 
 async function createWindow() {
-    // Asegurar que el directorio de caché existe
     fs.mkdirSync(CACHE_DIR,    { recursive: true });
     fs.mkdirSync(IA_CACHE_DIR, { recursive: true });
 
@@ -150,33 +149,42 @@ async function createWindow() {
             submenu: [
                 { label: `Versión ${APP_VER}`, enabled: false },
                 { type: 'separator' },
-                { label: '🔄 Recargar',         accelerator: 'F5',  click: () => mainWindow.reload() },
-                { label: '🐛 DevTools',          accelerator: 'F12', click: () => mainWindow.webContents.toggleDevTools() },
+                { label: '🔄 Recargar',           accelerator: 'F5',  click: () => mainWindow.reload() },
+                { label: '🐛 DevTools',            accelerator: 'F12', click: () => mainWindow.webContents.toggleDevTools() },
                 { type: 'separator' },
-                { label: '📂 Repositorio GitHub', click: () => shell.openExternal(REPO_URL) },
+                // Repositorio abre en el navegador CDR integrado (sin Edge)
+                { label: '📂 Repositorio GitHub',  click: () => openInCDRBrowser(REPO_URL) },
                 { type: 'separator' },
-                { label: '❌ Salir',             accelerator: 'Alt+F4', click: () => app.quit() }
+                { label: '❌ Salir',               accelerator: 'Alt+F4', click: () => app.quit() }
             ]
         }
     ]));
 
-    // Links externos → navegador del sistema
+    // ── TODOS los links externos abren en el navegador CDR integrado ──────────
+    // Sin Edge, sin Chrome externo, sin nada. Usa el Chromium de Electron.
     mainWindow.webContents.setWindowOpenHandler(({ url }) => {
-        shell.openExternal(url);
+        openInCDRBrowser(url);
         return { action: 'deny' };
     });
 
-    // ── FASE 1: Sincronizar archivos desde GitHub al caché local ──────────────
-    await syncAppFiles(mainWindow);
+    // Interceptar también clics en <a> con target="_blank" dentro de la app
+    mainWindow.webContents.on('will-navigate', (event, url) => {
+        const isLocal = url.startsWith('file://');
+        if (!isLocal) {
+            event.preventDefault();
+            openInCDRBrowser(url);
+        }
+    });
+
+    // ── FASE 1: Sincronizar archivos desde GitHub ─────────────────────────────
+    await syncAppFiles();
 
     // ── FASE 2: Cargar index.html desde caché local ───────────────────────────
     const indexPath = path.join(CACHE_DIR, 'index.html');
-    const indexExists = fs.existsSync(indexPath);
 
-    if (indexExists) {
+    if (fs.existsSync(indexPath)) {
         await mainWindow.loadFile(indexPath);
     } else {
-        // Si nunca se descargó (primer run sin internet)
         dialog.showErrorBox(
             'Sin conexión a internet',
             'CDR Studio necesita internet la primera vez para descargar la app.\nConéctate y vuelve a abrir el programa.'
@@ -185,7 +193,7 @@ async function createWindow() {
         return;
     }
 
-    // ── FASE 3: Inyectar keys FRESCAS desde GitHub (sobreescribe caché local) ─
+    // ── FASE 3: Inyectar keys frescas desde GitHub ────────────────────────────
     mainWindow.webContents.on('did-finish-load', () => {
         injectFreshKeys(mainWindow.webContents);
     });
